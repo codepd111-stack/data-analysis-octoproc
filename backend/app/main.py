@@ -17,6 +17,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="OCTOPROC Data Analysis Agent API", lifespan=lifespan)
 
+print(">>> CORS ORIGINS:", settings.cors_origin_list)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
