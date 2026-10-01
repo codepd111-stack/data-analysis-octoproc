@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+@theme {
+  --color-octo-red: #e60000;
+  --color-octo-red-dark: #b80000;
+  --color-octo-red-soft: #fff1f1;
+  --color-octo-green: #008000;
+  --color-octo-green-dark: #006400;
+  --color-octo-green-soft: #edf7ed;
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+::selection {
+  background: #d9f0d9;
+}
+
+/* Subtle, light scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}

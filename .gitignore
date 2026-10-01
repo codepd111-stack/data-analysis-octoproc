@@ -1,0 +1,17 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.db
+
+# Node
+node_modules/
+.next/
+
+# Secrets and local data
+.env
+.env.*
+!.env.example
+backend/data/
+backend/*.csv
+backend/*.xlsx

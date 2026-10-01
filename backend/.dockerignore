@@ -1,0 +1,15 @@
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+data
+*.db
+*.csv
+*.xlsx
+check_db.py
+make_test_files.py
+make_quality_test.py
+test_engine.py
+test_storage.py
+pin_requirements.py

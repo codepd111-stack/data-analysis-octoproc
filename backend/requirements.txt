@@ -1,0 +1,16 @@
+fastapi==0.142.1
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+pydantic-settings==2.15.0
+sqlalchemy==2.1.1
+psycopg[binary]==3.3.6
+alembic==1.20.0
+pandas==3.0.6
+pyarrow==25.0.1
+openpyxl==3.1.5
+xlrd==2.0.2
+duckdb==1.5.6
+groq==1.7.0
+sqlglot==30.20.0
+python-dotenv==1.2.3
+boto3==1.43.106
