@@ -24,3 +24,9 @@ export function clearToken(): void {
     /* ignore */
   }
 }
+
+/** For useSyncExternalStore: re-read the token when another tab signs in or out. */
+export function subscribeToken(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}

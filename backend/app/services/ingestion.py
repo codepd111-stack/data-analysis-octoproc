@@ -2,11 +2,15 @@ import io
 import logging
 import re
 import warnings
+from datetime import timedelta
 from pathlib import Path
 
 import pandas as pd
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.core.database import SessionLocal
+from app.core.utils import utcnow
 from app.models.dataset import Dataset
 from app.services.profiling import profile_dataframe
 from app.services.semantic_generator import build_baseline_layer, enrich_layer
@@ -18,6 +22,12 @@ logger = logging.getLogger(__name__)
 ALLOWED_EXTENSIONS = {".csv", ".xlsx", ".xls", ".parquet"}
 DATE_HINTS = ("date", "time", "_at", "timestamp", "dob")
 MAX_TABLES = 20
+
+INTERRUPTED_ERROR = (
+    "Processing was interrupted by a server restart before it finished. Use Retry to run it again."
+)
+# A healthy pipeline bumps updated_at at every stage; nothing legitimately stays silent this long
+STALE_AFTER = timedelta(minutes=15)
 
 
 def load_tables(path: Path) -> list[tuple[str, pd.DataFrame]]:
@@ -114,6 +124,24 @@ def _update(db, ds: Dataset, **fields) -> None:
     for key, value in fields.items():
         setattr(ds, key, value)
     db.commit()
+
+
+def fail_interrupted_datasets(db: Session, older_than: timedelta | None = None) -> int:
+    """
+    Mark 'processing' datasets as failed so the user can retry them. The pipeline runs inside the
+    API process, so a restart kills it mid-way and nothing else would ever update the row.
+    At startup every processing row is dead (older_than=None); while running, only rows that
+    have not progressed for `older_than` are considered stuck.
+    """
+    stmt = select(Dataset).where(Dataset.status == "processing")
+    if older_than is not None:
+        stmt = stmt.where(Dataset.updated_at < utcnow() - older_than)
+    stuck = db.scalars(stmt).all()
+    for ds in stuck:
+        ds.status, ds.stage, ds.error = "failed", None, INTERRUPTED_ERROR
+    if stuck:
+        db.commit()
+    return len(stuck)
 
 
 def run_pipeline(dataset_id: str) -> None:

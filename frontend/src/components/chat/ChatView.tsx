@@ -39,9 +39,9 @@ export default function ChatView({
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
-  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
-  const [secondsLeft, setSecondsLeft] = useState(0);
+  const [secondsLeft, setSecondsLeft] = useState(0); // > 0 while the AI service has us waiting
   const bottomRef = useRef<HTMLDivElement>(null);
+  const coolingDown = secondsLeft > 0;
 
   // Initial load: approved datasets, plus the conversation if one was requested
   useEffect(() => {
@@ -102,14 +102,10 @@ export default function ChatView({
 
   // Countdown after the AI service rate-limits us
   useEffect(() => {
-    if (!cooldownUntil) return;
-    const timer = setInterval(() => {
-      const left = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
-      setSecondsLeft(left);
-      if (left === 0) setCooldownUntil(null);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [cooldownUntil]);
+    if (!coolingDown) return;
+    const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [coolingDown, secondsLeft]);
 
   function newChat(nextDatasetId: string) {
     setMessages([]);
@@ -121,7 +117,7 @@ export default function ChatView({
 
   async function send(text: string) {
     const question = text.trim();
-    if (!question || sending || cooldownUntil || !datasetId) return;
+    if (!question || sending || coolingDown || !datasetId) return;
 
     const optimistic: ChatMessage = {
       id: `tmp-${uid()}`,
@@ -143,9 +139,7 @@ export default function ChatView({
       setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
       setInput(question);
       if (e instanceof ApiError && e.status === 429) {
-        const seconds = e.retryAfter ?? 30;
-        setCooldownUntil(Date.now() + seconds * 1000);
-        setSecondsLeft(seconds);
+        setSecondsLeft(e.retryAfter ?? 30);
       } else {
         setSendError(errorMessage(e));
       }
@@ -154,7 +148,7 @@ export default function ChatView({
     }
   }
 
-  const blocked = sending || cooldownUntil !== null;
+  const blocked = sending || coolingDown;
 
   if (phase === "loading") {
     return (
@@ -254,7 +248,7 @@ export default function ChatView({
 
       {/* Composer */}
       <div className="border-t border-slate-200 bg-white px-4 py-4 sm:px-6">
-        {cooldownUntil !== null && (
+        {coolingDown && (
           <div className="mx-auto mb-3 max-w-3xl rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
             The AI service is busy (free-tier limit reached). You can send again in{" "}
             <strong>{formatDuration(secondsLeft)}</strong>. Your question is kept in the box.

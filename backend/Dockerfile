@@ -1,4 +1,5 @@
-FROM python:3.13.0
+# slim is enough: every dependency ships a prebuilt wheel for linux/x86_64 + Python 3.13
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

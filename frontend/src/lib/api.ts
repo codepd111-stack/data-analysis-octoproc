@@ -32,7 +32,9 @@ export function errorMessage(e: unknown): string {
 function goToLogin() {
   clearToken();
   if (typeof window !== "undefined" && window.location.pathname !== "/login") {
-    window.location.assign("/login");
+    // Not inside a component, so no router here. A full navigation is wanted anyway:
+    // it drops every piece of in-memory state from the expired session.
+    window.location.assign(new URL("/login", window.location.origin).href);
   }
 }
 

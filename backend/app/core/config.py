@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     s3_cache_dir: str = ""  # empty = a folder inside the system temp directory
 
     cors_origins: str = "http://localhost:3000"
+    # True only when a reverse proxy (Render, nginx, ...) sits in front of the API and sets
+    # X-Forwarded-For. Without a proxy the header is client-supplied and must be ignored.
+    trust_proxy_headers: bool = False
     max_upload_mb: int = 50
     max_query_rows: int = 200
     duckdb_memory_limit: str = "1GB"

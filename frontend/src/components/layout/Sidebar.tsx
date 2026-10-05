@@ -1,20 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { navItems } from "./nav";
-import { clearToken, getToken } from "@/lib/auth";
+import { clearToken, getToken, subscribeToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
+
+const hasToken = () => getToken() !== null;
+const serverHasToken = () => false; // the server cannot see localStorage, so it renders signed-out
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const [signedIn, setSignedIn] = useState(false);
-
-  useEffect(() => {
-    setSignedIn(getToken() !== null);
-  }, []);
+  const router = useRouter();
+  const signedIn = useSyncExternalStore(subscribeToken, hasToken, serverHasToken);
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -58,7 +58,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <button
             onClick={() => {
               clearToken();
-              window.location.assign("/login");
+              router.replace("/login");
             }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           >

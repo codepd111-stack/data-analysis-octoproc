@@ -12,7 +12,10 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 WINDOW_SECONDS = 300
 MAX_FAILURES = 8
-_failures: dict[str, list[float]] = {}  # in-memory throttle: fine for a single small instance
+PRUNE_ABOVE = 500  # tidy the dict once this many clients have recorded a failure
+# In-memory throttle: fine for a single instance with one worker, which is how this deploys.
+# Several workers would each keep their own counts (the limit becomes MAX_FAILURES per worker).
+_failures: dict[str, list[float]] = {}
 
 
 class LoginRequest(CamelModel):
@@ -25,9 +28,24 @@ class LoginResponse(CamelModel):
 
 
 def _client_id(request: Request) -> str:
-    forwarded = request.headers.get("x-forwarded-for", "")
-    first = forwarded.split(",")[0].strip()
-    return first or (request.client.host if request.client else "unknown")
+    """
+    Who is attempting to sign in. Behind a reverse proxy the real client is the LAST address in
+    X-Forwarded-For (the one the proxy appended); anything before it was sent by the client and
+    could be forged to dodge the throttle. Without a trusted proxy the header is ignored entirely.
+    """
+    if settings.trust_proxy_headers:
+        forwarded = request.headers.get("x-forwarded-for", "")
+        last = forwarded.rsplit(",", 1)[-1].strip()
+        if last:
+            return last
+    return request.client.host if request.client else "unknown"
+
+
+def _prune_failures(now: float) -> None:
+    if len(_failures) < PRUNE_ABOVE:
+        return
+    for client in [c for c, times in _failures.items() if now - times[-1] >= WINDOW_SECONDS]:
+        del _failures[client]
 
 
 @router.get("/status")
@@ -42,6 +60,7 @@ def login(body: LoginRequest, request: Request):
 
     client = _client_id(request)
     now = time.time()
+    _prune_failures(now)
     recent = [t for t in _failures.get(client, []) if now - t < WINDOW_SECONDS]
     if len(recent) >= MAX_FAILURES:
         raise HTTPException(429, "Too many attempts. Please wait a few minutes and try again.")

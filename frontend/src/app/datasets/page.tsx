@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import Skeleton from "@/components/ui/Skeleton";
@@ -15,27 +15,29 @@ export default function DatasetsPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [combine, setCombine] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const load = useCallback(async () => {
-    try {
-      setDatasets(await api.listDatasets());
-      setError(null);
-    } catch (e) {
-      setError(errorMessage(e));
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Poll while anything is still processing
+  // Load on mount (and on retry), then keep polling while anything is still processing
   const hasProcessing = datasets?.some((d) => d.status === "processing") ?? false;
   useEffect(() => {
-    if (!hasProcessing) return;
-    const timer = setInterval(load, 2000);
-    return () => clearInterval(timer);
-  }, [hasProcessing, load]);
+    let cancelled = false;
+    async function refresh() {
+      try {
+        const list = await api.listDatasets();
+        if (cancelled) return;
+        setDatasets(list);
+        setError(null);
+      } catch (e) {
+        if (!cancelled) setError(errorMessage(e));
+      }
+    }
+    refresh();
+    const timer = hasProcessing ? setInterval(refresh, 2000) : null;
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+    };
+  }, [hasProcessing, reloadKey]);
 
   async function handleFiles(files: File[]) {
     setUploading(true);
@@ -108,7 +110,7 @@ export default function DatasetsPage() {
         Your datasets
       </h2>
 
-      {error && <ErrorBanner message={error} onRetry={load} />}
+      {error && <ErrorBanner message={error} onRetry={() => setReloadKey((k) => k + 1)} />}
 
       {!error && datasets === null && (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">

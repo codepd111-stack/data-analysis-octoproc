@@ -9,7 +9,12 @@ from app.core.database import get_db
 from app.core.utils import new_id
 from app.models.dataset import Dataset
 from app.schemas.dataset import DatasetOut
-from app.services.ingestion import ALLOWED_EXTENSIONS, run_pipeline
+from app.services.ingestion import (
+    ALLOWED_EXTENSIONS,
+    STALE_AFTER,
+    fail_interrupted_datasets,
+    run_pipeline,
+)
 from app.services.storage import get_storage
 
 from starlette.concurrency import run_in_threadpool
@@ -28,6 +33,8 @@ def _group_name(names: list[str]) -> str:
 
 @router.get("", response_model=list[DatasetOut])
 def list_datasets(db: Session = Depends(get_db)):
+    # The datasets page polls this while anything is processing: a cheap place to unstick jobs
+    fail_interrupted_datasets(db, older_than=STALE_AFTER)
     stmt = select(Dataset).order_by(Dataset.created_at.desc())
     return [DatasetOut.from_model(d) for d in db.scalars(stmt).all()]
 
