@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";

@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import { ChevronDown, Code, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { ChatMessage, Feedback, FeedbackReason } from "@/lib/types";

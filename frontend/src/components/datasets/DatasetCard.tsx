@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ArrowRight, FileSpreadsheet, RotateCcw, TriangleAlert } from "lucide-react";
 import type { Dataset } from "@/lib/types";
 import { formatNumber, formatRelative } from "@/lib/utils";
@@ -72,7 +72,7 @@ export default function DatasetCard({
 
         {status === "needs_review" && (
           <Link
-            href={`/review/${dataset.id}`}
+            to={`/review/${dataset.id}`}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-octo-green hover:text-octo-green-dark"
           >
             Review <ArrowRight className="h-4 w-4" />
@@ -81,13 +81,13 @@ export default function DatasetCard({
         {status === "approved" && (
           <div className="flex items-center gap-4">
             <Link
-              href={`/review/${dataset.id}`}
+              to={`/review/${dataset.id}`}
               className="text-sm font-medium text-slate-500 hover:text-slate-700"
             >
               Semantics
             </Link>
             <Link
-              href={`/chat?dataset=${dataset.id}`}
+              to={`/chat?dataset=${dataset.id}`}
               className="inline-flex items-center gap-1.5 text-sm font-medium text-octo-green hover:text-octo-green-dark"
             >
               Chat <ArrowRight className="h-4 w-4" />

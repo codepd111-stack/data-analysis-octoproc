@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ArrowRight, Info, MessageSquare, Search, Trash2 } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import ErrorBanner from "@/components/ui/ErrorBanner";
@@ -99,7 +97,7 @@ export default function HistoryPage() {
         <span>
           Every question, generated query, result summary and feedback rating is logged to help improve the
           agent. See how it is doing on the{" "}
-          <Link href="/insights" className="font-medium underline">
+          <Link to="/insights" className="font-medium underline">
             Insights
           </Link>{" "}
           page.
@@ -143,7 +141,7 @@ export default function HistoryPage() {
           ) : (
             <>
               No conversations yet.{" "}
-              <Link href="/chat" className="font-medium text-octo-green hover:text-octo-green-dark">
+              <Link to="/chat" className="font-medium text-octo-green hover:text-octo-green-dark">
                 Start one in Chat
               </Link>
               .
@@ -161,7 +159,7 @@ export default function HistoryPage() {
                 className="group flex items-center gap-2 rounded-2xl border border-slate-200 bg-white pr-3 shadow-sm transition-colors hover:border-octo-green/50"
               >
                 <Link
-                  href={`/chat?dataset=${c.datasetId}&conversation=${c.id}`}
+                  to={`/chat?dataset=${c.datasetId}&conversation=${c.id}`}
                   className="flex min-w-0 flex-1 items-center justify-between gap-4 px-5 py-4"
                 >
                   <div className="flex min-w-0 items-center gap-4">

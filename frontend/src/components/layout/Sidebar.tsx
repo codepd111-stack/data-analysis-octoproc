@@ -1,20 +1,16 @@
-"use client";
-
 import { useSyncExternalStore } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { navItems } from "./nav";
 import { clearToken, getToken, subscribeToken } from "@/lib/auth";
 import { cn } from "@/lib/utils";
 
 const hasToken = () => getToken() !== null;
-const serverHasToken = () => false; // the server cannot see localStorage, so it renders signed-out
 
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const signedIn = useSyncExternalStore(subscribeToken, hasToken, serverHasToken);
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const signedIn = useSyncExternalStore(subscribeToken, hasToken);
 
   return (
     <div className="flex h-full flex-col bg-white">
@@ -32,7 +28,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           return (
             <Link
               key={href}
-              href={href}
+              to={href}
               onClick={onNavigate}
               className={cn(
                 "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
@@ -58,7 +54,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <button
             onClick={() => {
               clearToken();
-              router.replace("/login");
+              navigate("/login", { replace: true });
             }}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           >

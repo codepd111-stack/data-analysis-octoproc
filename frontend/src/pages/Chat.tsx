@@ -1,10 +1,8 @@
-"use client";
+import { useSearchParams } from "react-router-dom";
+import ChatView from "@/components/chat/ChatView";
 
-import { useSearchParams } from "next/navigation";
-import ChatView from "./ChatView";
-
-export default function ChatRoute() {
-  const params = useSearchParams();
+export default function ChatPage() {
+  const [params] = useSearchParams();
   // key forces a fresh ChatView whenever the URL params change (e.g. opening a past conversation)
   return (
     <ChatView

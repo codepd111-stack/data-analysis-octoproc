@@ -1,8 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   ArrowRight,
@@ -32,7 +29,7 @@ type Busy = "draft" | "approve" | "regenerate" | null;
 function BackLink() {
   return (
     <Link
-      href="/review"
+      to="/review"
       className="mb-4 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
     >
       <ArrowLeft className="h-4 w-4" /> All datasets
@@ -41,7 +38,7 @@ function BackLink() {
 }
 
 export default function ReviewEditorPage() {
-  const { id } = useParams<{ id: string }>();
+  const { id = "" } = useParams();
 
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [layer, setLayer] = useState<SemanticLayer | null>(null);
@@ -241,7 +238,7 @@ export default function ReviewEditorPage() {
             Approved. This dataset is available in chat.
           </div>
           <Link
-            href={`/chat?dataset=${dataset.id}`}
+            to={`/chat?dataset=${dataset.id}`}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-octo-green-dark hover:underline"
           >
             Start chatting <ArrowRight className="h-4 w-4" />

@@ -1,14 +1,12 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
 import ErrorBanner from "@/components/ui/ErrorBanner";
 import { api, errorMessage } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -18,10 +16,10 @@ export default function LoginPage() {
     api
       .authStatus()
       .then((s) => {
-        if (!s.authRequired) router.replace("/datasets");
+        if (!s.authRequired) navigate("/datasets", { replace: true });
       })
       .catch(() => {});
-  }, [router]);
+  }, [navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +29,7 @@ export default function LoginPage() {
     try {
       const res = await api.login(code.trim());
       setToken(res.token);
-      router.replace("/datasets");
+      navigate("/datasets", { replace: true });
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);

@@ -1,7 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ArrowRight, CircleCheck, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -13,7 +11,7 @@ import type { Dataset } from "@/lib/types";
 function Row({ dataset }: { dataset: Dataset }) {
   return (
     <Link
-      href={`/review/${dataset.id}`}
+      to={`/review/${dataset.id}`}
       className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition-colors hover:border-octo-green/50"
     >
       <div className="flex min-w-0 items-center gap-4">

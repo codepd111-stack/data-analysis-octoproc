@@ -1,8 +1,5 @@
-"use client";
-
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link, useNavigate } from "react-router-dom";
 import { Database, Plus, Send, Sparkles } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import TypingIndicator from "./TypingIndicator";
@@ -22,7 +19,7 @@ export default function ChatView({
   initialDatasetId?: string | null;
   conversationId?: string | null;
 }) {
-  const router = useRouter();
+  const navigate = useNavigate();
 
   const [phase, setPhase] = useState<Phase>("loading");
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -112,7 +109,7 @@ export default function ChatView({
     setConversationId(null);
     setSendError(null);
     setInput("");
-    router.replace(`/chat?dataset=${nextDatasetId}`);
+    navigate(`/chat?dataset=${nextDatasetId}`, { replace: true });
   }
 
   async function send(text: string) {
@@ -175,7 +172,7 @@ export default function ChatView({
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
         <p className="text-sm text-slate-600">No dataset is approved yet.</p>
-        <Link href="/review" className="mt-3 inline-block text-sm font-medium text-octo-green">
+        <Link to="/review" className="mt-3 inline-block text-sm font-medium text-octo-green">
           Go to Semantic Review
         </Link>
       </div>

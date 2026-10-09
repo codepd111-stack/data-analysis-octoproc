@@ -6,7 +6,8 @@ __pycache__/
 
 # Node
 node_modules/
-.next/
+frontend/dist/
+frontend/.vite/
 
 # Secrets and local data
 .env

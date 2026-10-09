@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import ErrorBanner from "@/components/ui/ErrorBanner";

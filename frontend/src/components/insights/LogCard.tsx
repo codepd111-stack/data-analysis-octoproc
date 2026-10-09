@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
 import type { LogEntry, LogStatus } from "@/lib/types";
 import { cn, formatRelative } from "@/lib/utils";
@@ -79,7 +79,7 @@ export default function LogCard({ log }: { log: LogEntry }) {
 
       {log.conversationId && log.datasetId && (
         <Link
-          href={`/chat?dataset=${log.datasetId}&conversation=${log.conversationId}`}
+          to={`/chat?dataset=${log.datasetId}&conversation=${log.conversationId}`}
           className="mt-3 inline-block text-xs font-medium text-octo-green hover:text-octo-green-dark"
         >
           Open conversation

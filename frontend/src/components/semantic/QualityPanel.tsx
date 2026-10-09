@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { ChevronDown, CircleCheck, Info, TriangleAlert } from "lucide-react";
 import { api } from "@/lib/api";

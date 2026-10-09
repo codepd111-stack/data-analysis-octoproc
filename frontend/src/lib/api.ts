@@ -12,7 +12,7 @@ import type {
   SemanticLayer,
 } from "./types";
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
+const BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;

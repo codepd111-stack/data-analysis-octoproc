@@ -12,7 +12,8 @@ upload files ──> profile + Parquet ──> AI drafts semantic layer ──> 
 - **Backend** ([`backend/`](backend/)): FastAPI, SQLAlchemy + Alembic on Postgres (Neon),
   DuckDB for queries, sqlglot for SQL validation, Groq (`openai/gpt-oss-*`) as the LLM, files on
   local disk or any S3-compatible bucket.
-- **Frontend** ([`frontend/`](frontend/)): Next.js 16, React 19, Tailwind 4, recharts.
+- **Frontend** ([`frontend/`](frontend/)): Vite, React 19, React Router 7, Tailwind 4, recharts
+  (the same stack as the MRO platform frontend).
 
 ## Run locally
 
@@ -66,7 +67,7 @@ All backend settings are environment variables, documented in
 | `ACCESS_CODE` / `AUTH_SECRET` | The shared sign-in code and the key that signs session tokens (16+ random chars). |
 | `TRUST_PROXY_HEADERS` | `true` only behind a reverse proxy such as Render, so the login throttle sees real client IPs. |
 
-Frontend: `NEXT_PUBLIC_API_URL` in [`frontend/.env.example`](frontend/.env.example).
+Frontend: `VITE_API_BASE_URL` in [`frontend/.env.example`](frontend/.env.example).
 
 ## Deploy
 
@@ -75,8 +76,9 @@ Frontend: `NEXT_PUBLIC_API_URL` in [`frontend/.env.example`](frontend/.env.examp
   The container runs `alembic upgrade head` on every start, so schema changes ship with the code.
 - **Database on Neon**: create a project, copy the pooled connection string into `DATABASE_URL`.
 - **Files**: create a bucket on any S3-compatible provider and set the `S3_*` variables.
-- **Frontend on Vercel** (or similar): import `frontend/`, set `NEXT_PUBLIC_API_URL` to the
-  Render URL, and add the Vercel URL to the API's `CORS_ORIGINS`.
+- **Frontend on Vercel** (or similar): import `frontend/` (its `vercel.json` selects the Vite
+  preset and the SPA rewrite), set `VITE_API_BASE_URL` to the Render URL, and add the Vercel
+  URL to the API's `CORS_ORIGINS`.
 
 Cold starts: Neon scales to zero and Render's free tier sleeps, so the frontend shows a
 "waking up the server" banner and polls `/api/health` for up to 90 seconds.

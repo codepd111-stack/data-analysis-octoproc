@@ -1,17 +1,12 @@
-"use client";
-
 import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { Outlet } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 import Sidebar from "./Sidebar";
 import ServerWakeBanner from "./ServerWakeBanner";
 
-export default function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+/** Layout route for every page except sign-in: sidebar, mobile drawer and the server wake banner. */
+export default function AppShell() {
   const [open, setOpen] = useState(false);
-
-  // The sign-in page is shown without the sidebar
-  if (pathname === "/login") return <>{children}</>;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -58,7 +53,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <main className="lg:pl-64">
         <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
           <ServerWakeBanner />
-          {children}
+          <Outlet />
         </div>
       </main>
     </div>

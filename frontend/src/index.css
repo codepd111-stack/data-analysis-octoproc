@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
   --color-octo-red: #e60000;
   --color-octo-red-dark: #b80000;
   --color-octo-red-soft: #fff1f1;
@@ -14,6 +16,9 @@
 }
 
 body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: #f8fafc;
   color: #0f172a;
 }
