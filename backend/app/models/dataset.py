@@ -48,3 +48,29 @@ class SemanticLayer(Base):
     is_approved: Mapped[bool] = mapped_column(Boolean, default=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class VerifiedQuery(Base):
+    """
+    A question and the SQL a person confirmed as correct for it (a thumbs-up in chat). Used as
+    worked examples when writing new SQL, and to label a repeat of the same calculation Verified.
+    One entry per distinct question; a newer thumbs-up replaces the SQL.
+    """
+
+    __tablename__ = "verified_queries"
+    __table_args__ = (UniqueConstraint("dataset_id", "question_norm"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
+    dataset_id: Mapped[str] = mapped_column(
+        ForeignKey("datasets.id", ondelete="CASCADE"), index=True
+    )
+    question: Mapped[str] = mapped_column(Text)
+    question_norm: Mapped[str] = mapped_column(String(500))  # lower-cased words, for matching
+    sql: Mapped[str] = mapped_column(Text)
+    sql_norm: Mapped[str] = mapped_column(Text)  # formatting-independent, for matching
+    # True when the question was asked without earlier turns, so its SQL depends on nothing else
+    standalone: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_message_id: Mapped[str | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

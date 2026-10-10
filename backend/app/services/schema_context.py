@@ -78,4 +78,32 @@ def build_schema_prompt(
     out.append("\n\n".join(blocks))
     if rels:
         out += ["", "RELATIONSHIPS (join on these columns)", *rels]
+
+    # Governed definitions, approved by a person. The pipeline checks afterwards that the SQL
+    # really used them (services/grounding.py), so the wording here asks for exact copies.
+    metrics = [m for m in layer.metrics if m.table in allowed]
+    if metrics:
+        out += ["", "GOVERNED METRICS (copy the expression exactly when the question asks for the metric)"]
+        for m in metrics:
+            line = f"  {m.name} = {m.expression}  [table {m.table}]"
+            if m.description.strip():
+                line += f" - {m.description.strip()[:120]}"
+            out.append(line)
+
+    filters = [f for f in layer.filters if f.table in allowed]
+    if filters:
+        out += [
+            "",
+            "DEFAULT FILTERS (put the expression in the WHERE clause whenever the table is read; "
+            "skipped_filters is the only exception)",
+        ]
+        for f in filters:
+            line = f"  id={f.id} table {f.table}: {f.expression}"
+            if f.description.strip():
+                line += f" - {f.description.strip()[:120]}"
+            out.append(line)
+
+    rules = [r.text.strip()[:300] for r in layer.rules if r.text.strip()]
+    if rules:
+        out += ["", "BUSINESS RULES", *[f"  - {text}" for text in rules]]
     return "\n".join(out)

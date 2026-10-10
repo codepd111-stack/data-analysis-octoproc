@@ -14,6 +14,7 @@ const FILTERS = [
   { value: "downvoted", label: "Downvoted" },
   { value: "retried", label: "Retried" },
   { value: "unanswerable", label: "Unanswerable" },
+  { value: "ad_hoc", label: "Ad-hoc answers" },
   { value: "all", label: "All" },
 ] as const;
 
@@ -128,6 +129,7 @@ export default function InsightsPage() {
   }
 
   const helpfulTotal = s ? s.thumbsUp + s.thumbsDown : 0;
+  const graded = s ? s.verified + s.governed + s.adHoc : 0;
   const cards = s
     ? [
         { label: "Questions asked", value: formatNumber(s.total) },
@@ -135,6 +137,11 @@ export default function InsightsPage() {
           label: "Answered",
           value: s.total ? `${Math.round((100 * s.answered) / s.total)}%` : "–",
           sub: `${formatNumber(s.answered)} of ${formatNumber(s.total)}`,
+        },
+        {
+          label: "Governed or verified",
+          value: graded ? `${Math.round((100 * (s.verified + s.governed)) / graded)}%` : "–",
+          sub: `${s.verified} verified · ${s.governed} governed · ${s.adHoc} ad-hoc`,
         },
         {
           label: "Avg. response time",
@@ -194,10 +201,10 @@ export default function InsightsPage() {
       )}
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {!s &&
           !error &&
-          [0, 1, 2, 3, 4, 5, 6, 7].map((i) => <Skeleton key={i} className="h-24" />)}
+          [0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => <Skeleton key={i} className="h-24" />)}
         {cards.map((c) => (
           <div key={c.label} className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
             <p className={cn("text-2xl font-semibold", c.bad ? "text-rose-600" : "text-slate-900")}>
@@ -247,8 +254,9 @@ export default function InsightsPage() {
       </div>
 
       <p className="mb-4 text-xs text-slate-400">
-        Tip: export the &quot;Needs attention&quot; rows and use them to refine the prompts in
-        services/prompts.py and the descriptions in your semantic layers.
+        Tip: &quot;Ad-hoc answers&quot; show where a governed metric or default filter is missing.
+        Define it on the dataset&apos;s review page and the same question comes back Governed.
+        Export &quot;Needs attention&quot; to refine prompts and column descriptions.
       </p>
 
       {/* Log list */}

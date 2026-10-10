@@ -4,10 +4,14 @@ import uuid
 from app.core.config import settings
 from app.schemas.semantic import (
     ColumnSchema,
+    FilterSchema,
+    MetricSchema,
     RelationshipSchema,
+    RuleSchema,
     SemanticLayerSchema,
     TableSchema,
 )
+from app.services.definitions import DefinitionError, validate_filter, validate_metric
 from app.services.llm_client import LLMError, get_llm
 from app.services.prompts import SEMANTIC_ENRICH_SYSTEM
 
@@ -16,6 +20,9 @@ logger = logging.getLogger(__name__)
 VALID_ROLES = {"identifier", "dimension", "measure", "date"}
 VALID_REL_TYPES = {"many-to-one", "one-to-many", "one-to-one"}
 KEY_SUFFIXES = ("_id", "_key", "_code")
+MAX_METRICS = 12
+MAX_FILTERS = 6
+MAX_RULES = 8
 
 # Columns whose name contains one of these words never have sample values stored or sent
 SENSITIVE_TOKENS = {
@@ -58,7 +65,7 @@ def _clean_str(value: object) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
-def _new_rel_id() -> str:
+def _short_id() -> str:
     return uuid.uuid4().hex[:8]
 
 
@@ -99,7 +106,7 @@ def infer_relationships(tables: list[dict]) -> list[RelationshipSchema]:
                     continue
                 found.append(
                     RelationshipSchema(
-                        id=_new_rel_id(),
+                        id=_short_id(),
                         from_=f"{child['table']}.{col_a['name']}",
                         to=f"{parent['table']}.{col_a['name']}",
                         type=kind,
@@ -176,6 +183,81 @@ def build_enrich_prompt(tables: list[dict]) -> str:
     return "\n\n".join(blocks)
 
 
+def _merge_metrics(raw: object, columns: dict[str, set[str]]) -> list[MetricSchema]:
+    """Only metrics that name a real table, parse, aggregate and use existing columns survive."""
+    out: list[MetricSchema] = []
+    names: set[str] = set()
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        name = _clean_str(item.get("name"))[:60]
+        table = _clean_str(item.get("table"))
+        expression = _clean_str(item.get("expression"))
+        if not name or name.lower() in names or table not in columns:
+            continue
+        try:
+            validate_metric(expression, table, columns[table])
+        except DefinitionError as exc:
+            logger.info("Dropping suggested metric %r: %s", name, exc)
+            continue
+        names.add(name.lower())
+        out.append(
+            MetricSchema(
+                id=_short_id(),
+                name=name,
+                table=table,
+                expression=expression,
+                description=_clean_str(item.get("description"))[:200],
+            )
+        )
+        if len(out) >= MAX_METRICS:
+            break
+    return out
+
+
+def _merge_filters(raw: object, columns: dict[str, set[str]]) -> list[FilterSchema]:
+    out: list[FilterSchema] = []
+    seen: set[tuple[str, str]] = set()
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        table = _clean_str(item.get("table"))
+        expression = _clean_str(item.get("expression"))
+        if table not in columns or (table, expression) in seen:
+            continue
+        try:
+            validate_filter(expression, table, columns[table])
+        except DefinitionError as exc:
+            logger.info("Dropping suggested filter %r: %s", expression, exc)
+            continue
+        seen.add((table, expression))
+        out.append(
+            FilterSchema(
+                id=_short_id(),
+                table=table,
+                expression=expression,
+                description=_clean_str(item.get("description"))[:200],
+            )
+        )
+        if len(out) >= MAX_FILTERS:
+            break
+    return out
+
+
+def _merge_rules(raw: object) -> list[RuleSchema]:
+    out: list[RuleSchema] = []
+    seen: set[str] = set()
+    for item in raw if isinstance(raw, list) else []:
+        text = _clean_str(item.get("text") if isinstance(item, dict) else item)[:300]
+        if not text or text.lower() in seen:
+            continue
+        seen.add(text.lower())
+        out.append(RuleSchema(id=_short_id(), text=text))
+        if len(out) >= MAX_RULES:
+            break
+    return out
+
+
 def merge_llm_output(layer: SemanticLayerSchema, data: object) -> SemanticLayerSchema:
     """Apply the model's answer, keeping only what is valid. Anything unusable falls back to the baseline."""
     if not isinstance(data, dict):
@@ -231,14 +313,20 @@ def merge_llm_output(layer: SemanticLayerSchema, data: object) -> SemanticLayerS
             continue
         seen.add(pair)
         relationships.append(
-            RelationshipSchema(id=_new_rel_id(), from_=src, to=dst, type=kind)
+            RelationshipSchema(id=_short_id(), from_=src, to=dst, type=kind)
         )
+
+    # Governed definitions: suggestions only; the reviewer edits and approves them
+    columns = {t.name: {c.name.lower() for c in t.columns} for t in new_tables}
 
     return layer.model_copy(
         update={
             "summary": _clean_str(data.get("summary")) or layer.summary,
             "tables": new_tables,
             "relationships": relationships,
+            "metrics": _merge_metrics(data.get("metrics"), columns),
+            "filters": _merge_filters(data.get("filters"), columns),
+            "rules": _merge_rules(data.get("rules")),
             "generated_by": "llm",
         }
     )
@@ -253,7 +341,7 @@ def enrich_layer(layer: SemanticLayerSchema, tables: list[dict]) -> SemanticLaye
                 {"role": "system", "content": SEMANTIC_ENRICH_SYSTEM},
                 {"role": "user", "content": user_prompt},
             ],
-            max_tokens=4000,
+            max_tokens=5000,
         )
     except LLMError as exc:
         logger.warning("AI enrichment skipped: %s", exc)

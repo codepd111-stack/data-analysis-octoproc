@@ -35,6 +35,10 @@ class Message(Base):
     sql: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback: Mapped[str | None] = mapped_column(String(8), nullable=True)  # up | down
     feedback_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Trust badge (verified | governed | ad_hoc) and the receipts behind the answer; see
+    # services/grounding.py. Only answers that ran a query have them.
+    trust: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    grounding: Mapped[dict | None] = mapped_column(JSONType, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 
@@ -64,4 +68,5 @@ class QueryLog(Base):
     row_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    trust: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

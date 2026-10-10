@@ -1,4 +1,4 @@
 from app.models.conversation import Conversation, Message, QueryLog
-from app.models.dataset import Dataset, SemanticLayer
+from app.models.dataset import Dataset, SemanticLayer, VerifiedQuery
 
-__all__ = ["Dataset", "SemanticLayer", "Conversation", "Message", "QueryLog"]
+__all__ = ["Dataset", "SemanticLayer", "VerifiedQuery", "Conversation", "Message", "QueryLog"]

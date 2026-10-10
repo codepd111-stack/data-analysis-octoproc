@@ -1,11 +1,15 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import Field
 
 from app.schemas.base import CamelModel
 
 FeedbackReason = Literal["wrong_numbers", "wrong_chart", "misunderstood", "too_vague", "other"]
+
+# verified = a person confirmed this exact calculation before; governed = built only from approved
+# metrics with every default filter applied; ad_hoc = the model's own calculation
+Trust = Literal["verified", "governed", "ad_hoc"]
 
 
 class ChartSpecSchema(CamelModel):
@@ -16,6 +20,35 @@ class ChartSpecSchema(CamelModel):
     data: list[dict[str, str | int | float]]
 
 
+class MetricUse(CamelModel):
+    name: str
+    expression: str
+
+
+class FilterUse(CamelModel):
+    id: str
+    table: str
+    expression: str
+    description: str = ""
+    reason: str | None = None  # for a skipped filter: why the user wanted those rows included
+
+
+class GroundingSchema(CamelModel):
+    """The receipts behind an answer: what it was built from, and why it got its trust badge."""
+
+    reason: str
+    metrics_used: list[MetricUse] = Field(default_factory=list)
+    filters_applied: list[FilterUse] = Field(default_factory=list)
+    filters_skipped: list[FilterUse] = Field(default_factory=list)
+    filters_missing: list[FilterUse] = Field(default_factory=list)
+    unmatched_aggregates: list[str] = Field(default_factory=list)
+    tables: list[str] = Field(default_factory=list)
+    columns: list[str] = Field(default_factory=list)
+    rows_preview: list[dict[str, Any]] = Field(default_factory=list)
+    row_count: int = 0
+    verified_question: str | None = None
+
+
 class MessageOut(CamelModel):
     id: str
     role: Literal["user", "assistant"]
@@ -24,6 +57,8 @@ class MessageOut(CamelModel):
     sql: str | None = None
     feedback: str | None = None
     feedback_reason: str | None = None
+    trust: Trust | None = None
+    grounding: GroundingSchema | None = None
     created_at: datetime
 
 

@@ -5,8 +5,10 @@ description of the data, then ask questions in plain language and get answers wi
 
 ```
 upload files ──> profile + Parquet ──> AI drafts semantic layer ──> you review & approve
-                                                                          │
-   answer + chart <── LLM narrates <── DuckDB runs SQL <── LLM writes SQL <┘  (chat)
+                                       (meanings, metrics, filters)         │
+   answer + chart <── LLM narrates <── graded for trust <── DuckDB runs SQL <── LLM writes SQL <┘
+   + trust badge                       (verified / governed / ad-hoc)                      (chat)
+   + evidence
 ```
 
 - **Backend** ([`backend/`](backend/)): FastAPI, SQLAlchemy + Alembic on Postgres (Neon),
@@ -47,7 +49,10 @@ pytest
 The suite runs against a temporary SQLite file and local storage, with the AI stubbed out,
 so it needs no network or keys. It covers the SQL validator and DuckDB sandbox, chart building,
 sign-in tokens and throttling, ingestion (column cleaning, dates, Excel sheets), semantic layer
-generation and merging of model output, and the upload → review flow end to end.
+generation and merging of model output, governed definitions (validation and the check against
+the data), grounding and trust badges, the chat pipeline with a scripted model (the default-filter
+guardrail, the verified short-circuit), the thumbs-up → verified library → reuse flow over the
+API, and the upload → review flow end to end.
 
 The scripts next to it (`test_engine.py`, `test_storage.py`, `check_db.py`, `make_*.py`) are
 manual helpers that talk to your real configuration; they are not part of the suite.
@@ -88,29 +93,53 @@ Cold starts: Neon scales to zero and Render's free tier sleeps, so the frontend 
 **Ingestion** (`backend/app/services/ingestion.py`) runs as a FastAPI background task:
 cleans column names to `snake_case`, parses date-like columns, writes one Parquet file per
 table (Excel sheets become tables), profiles each column, builds a heuristic semantic layer
-(roles, relationships from shared key columns) and asks the LLM to improve descriptions.
+(roles, relationships from shared key columns) and asks the LLM to improve descriptions and to
+draft **governed definitions**: metrics (`Revenue = SUM(amount)`), default filters
+(`status <> 'test'`) and business rules. Suggested definitions survive only if they parse, refer
+to real columns of one table and (for metrics) aggregate; the reviewer edits the rest.
 Columns with sensitive-sounding names (email, phone, salary, ...) never have sample values
 stored or sent to the model. The job runs inside the API process, so if the server restarts
 mid-way the dataset is marked failed with a clear message and a **Retry** button.
 
-**Semantic layer** (`semantic_generator.py`, `semantic_store.py`) is versioned: every edit
-saves a new version, approval is per version, and chat uses the latest approved one.
+**Semantic layer** (`semantic_generator.py`, `semantic_store.py`, `definitions.py`) is
+versioned: every edit saves a new version, approval is per version, and chat uses the latest
+approved one. A layer with a broken metric or filter cannot be saved or approved (the API
+answers 422/409 naming the problem), and `POST .../semantic/check` runs every definition
+against the data so the reviewer sees real numbers ("Revenue: 1,234,567", "keeps 980 of 1,000
+rows") before approving.
 
 **Chat** (`chat_orchestrator.py`) is a fixed text-to-SQL pipeline, not a tool-using agent:
 
-1. The main model returns `{answerable, sql, chart, assumptions}` as JSON, given the schema,
-   the last three turns and today's date.
-2. `validate_select` accepts exactly one `SELECT`/`UNION` over known tables, rejects table
+1. A fresh question that a person already verified (see below) is answered from the stored SQL
+   without calling the model, unless a default filter was added since.
+2. Otherwise the main model returns `{answerable, sql, chart, assumptions, skipped_filters}`
+   as JSON, given the schema with its governed metrics, default filters and rules, up to three
+   similar verified examples, the last three turns and today's date.
+3. `validate_select` accepts exactly one `SELECT`/`UNION` over known tables, rejects table
    functions and adds a `LIMIT`. `run_query` loads only the needed Parquet tables into an
    in-memory DuckDB, disables external access, and enforces a 15 second timeout.
-3. A failing query is fed back to the model for up to two more attempts; zero rows trigger one
-   "loosen the filters" retry.
-4. The fast model turns the rows into prose; `chart_builder` turns them into a bar, line or pie
+4. A failing query is fed back to the model for up to two more attempts; zero rows trigger one
+   "loosen the filters" retry; a default filter left out without the user asking is sent back
+   once (if it is still missing, the answer is kept but flagged).
+5. `grounding.py` grades the answer structurally (sqlglot, never the model's say-so): which
+   governed metrics the SQL really uses, which default filters are applied, skipped or missing,
+   and which aggregates are not governed. That gives the **trust badge**: *verified* (matches a
+   confirmed calculation), *governed* (only governed metrics, every default filter applied) or
+   *ad-hoc* (anything else), plus the evidence shown under every answer: the reason, definitions
+   used, tables read, the first rows and the SQL.
+6. The fast model turns the rows into prose; `chart_builder` turns them into a bar, line or pie
    spec for recharts.
-5. Rate limits surface as HTTP 429 with `Retry-After`.
+7. Rate limits surface as HTTP 429 with `Retry-After`.
 
-Every attempt is written to `query_logs`, which powers the **Insights** page (failures, retries,
-thumbs up/down, CSV export).
+**Verified answers** (`verified_store.py`): a thumbs-up on an answer saves its question and SQL
+for the dataset; taking the thumbs-up back removes it, and the review page lists and retires
+them. Entries are reused as worked examples for similar questions and, when a fresh chat asks
+the same question, answered directly. A thumbs-up on a follow-up question is kept as an example
+only, since its SQL depends on the earlier turns.
+
+Every attempt is written to `query_logs` with its trust badge, which powers the **Insights**
+page (failures, retries, thumbs up/down, share of governed or verified answers, an "Ad-hoc
+answers" filter that shows where definitions are missing, CSV export).
 
 **Sign-in** is a single shared access code. Login returns an HMAC-signed token that the frontend
 keeps in `localStorage`; every other route requires it as a Bearer header. Failed logins are

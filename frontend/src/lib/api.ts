@@ -4,12 +4,14 @@ import type {
   ConversationDetail,
   ConversationPage,
   Dataset,
+  DefinitionCheck,
   Feedback,
   FeedbackReason,
   InsightsSummary,
   LogPage,
   QualityIssue,
   SemanticLayer,
+  VerifiedQuery,
 } from "./types";
 
 const BASE = (import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -133,6 +135,15 @@ export const api = {
   regenerateSemantic: (id: string) =>
     request<SemanticLayer>(`/api/datasets/${id}/semantic/regenerate`, { method: "POST" }),
   getQuality: (id: string) => request<QualityIssue[]>(`/api/datasets/${id}/quality`),
+  // Tries the layer's metrics and filters (saved or not) against the real data
+  checkDefinitions: (id: string, layer: SemanticLayer) =>
+    request<DefinitionCheck[]>(`/api/datasets/${id}/semantic/check`, jsonInit("POST", layer)),
+
+  // Verified answers (built from thumbs-ups in chat)
+  listVerified: (datasetId: string) =>
+    request<VerifiedQuery[]>(`/api/datasets/${datasetId}/verified`),
+  deleteVerified: (datasetId: string, id: string) =>
+    request<void>(`/api/datasets/${datasetId}/verified/${id}`, { method: "DELETE" }),
 
   // Chat
   sendChat: (body: { datasetId: string; conversationId?: string | null; question: string }) =>

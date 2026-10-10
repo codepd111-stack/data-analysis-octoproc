@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { ThumbsDown, ThumbsUp } from "lucide-react";
+import TrustBadge from "@/components/chat/TrustBadge";
 import type { LogEntry, LogStatus } from "@/lib/types";
 import { cn, formatRelative } from "@/lib/utils";
 
@@ -40,6 +41,7 @@ export default function LogCard({ log }: { log: LogEntry }) {
         {log.datasetName && (
           <span className="rounded-md bg-slate-100 px-2 py-0.5 text-slate-600">{log.datasetName}</span>
         )}
+        {log.trust && <TrustBadge trust={log.trust} size="xs" />}
         <span>{formatRelative(log.createdAt)}</span>
         <span>
           {log.attempts} attempt{log.attempts === 1 ? "" : "s"}

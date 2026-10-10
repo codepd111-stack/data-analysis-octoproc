@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { ChevronDown, Code, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import type { ChatMessage, Feedback, FeedbackReason } from "@/lib/types";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import ChartRenderer from "./ChartRenderer";
+import EvidencePanel from "./EvidencePanel";
+import TrustBadge from "./TrustBadge";
 
 const REASONS: { value: FeedbackReason; label: string }[] = [
   { value: "wrong_numbers", label: "Wrong numbers" },
@@ -17,6 +19,8 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
   const [feedback, setFeedback] = useState<Feedback>(message.feedback ?? null);
   const [reason, setReason] = useState<FeedbackReason | null>(message.feedbackReason ?? null);
   const [askReason, setAskReason] = useState(false);
+  // A thumbs-up on an answer that ran a query saves its calculation as a verified answer
+  const canVerify = Boolean(message.sql && message.trust);
 
   async function toggleFeedback(kind: "up" | "down") {
     const previous = { feedback, reason, askReason };
@@ -60,24 +64,20 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
         <Sparkles className="h-4 w-4" />
       </div>
       <div className="min-w-0 flex-1 space-y-3">
-        <div className="whitespace-pre-line rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-700 shadow-sm">
-          {message.content}
+        <div className="rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          {message.trust && (
+            <div className="mb-2">
+              <TrustBadge trust={message.trust} size="xs" />
+            </div>
+          )}
+          <div className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
+            {message.content}
+          </div>
         </div>
 
         {message.chart && <ChartRenderer spec={message.chart} />}
 
-        {message.sql && (
-          <details className="group rounded-xl border border-slate-200 bg-white">
-            <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 text-xs font-medium text-slate-500 hover:text-slate-700">
-              <Code className="h-3.5 w-3.5" />
-              How this was calculated
-              <ChevronDown className="ml-auto h-4 w-4 transition-transform group-open:rotate-180" />
-            </summary>
-            <pre className="overflow-x-auto border-t border-slate-100 bg-slate-50 px-4 py-3 font-mono text-xs leading-relaxed text-slate-700">
-              {message.sql}
-            </pre>
-          </details>
-        )}
+        <EvidencePanel message={message} />
 
         <div className="flex flex-wrap items-center gap-1">
           {(["up", "down"] as const).map((kind) => {
@@ -100,6 +100,11 @@ export default function MessageBubble({ message }: { message: ChatMessage }) {
               </button>
             );
           })}
+          {feedback === "up" && canVerify && (
+            <span className="ml-1 text-xs text-slate-400">
+              Saved as a verified answer: the same question will reuse this calculation.
+            </span>
+          )}
           {feedback === "down" && reason && !askReason && (
             <span className="ml-1 text-xs text-slate-400">
               Noted: {REASONS.find((r) => r.value === reason)?.label ?? reason}

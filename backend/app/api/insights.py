@@ -15,7 +15,9 @@ from app.schemas.insights import ErrorCount, InsightsSummary, LogEntry, LogPage
 
 router = APIRouter(prefix="/api/insights", tags=["insights"])
 
-FILTERS = {"attention", "failed", "downvoted", "retried", "unanswerable", "rate_limited", "all"}
+FILTERS = {
+    "attention", "failed", "downvoted", "retried", "unanswerable", "rate_limited", "ad_hoc", "all",
+}
 
 IS_UNANSWERABLE = QueryLog.error == "unanswerable"
 IS_RATE_LIMITED = QueryLog.error.like("rate_limited%")
@@ -28,6 +30,8 @@ IS_FAILED = and_(
 )
 IS_RETRIED = and_(QueryLog.success.is_(True), QueryLog.attempts >= 2)
 IS_DOWN = Message.feedback == "down"
+# Answered with the model's own formula or without a default filter: where definitions are missing
+IS_AD_HOC = QueryLog.trust == "ad_hoc"
 
 
 def _count(condition):
@@ -50,6 +54,8 @@ def _conditions(filter_name: str, days: int | None) -> list:
         conditions.append(IS_UNANSWERABLE)
     elif filter_name == "rate_limited":
         conditions.append(IS_RATE_LIMITED)
+    elif filter_name == "ad_hoc":
+        conditions.append(IS_AD_HOC)
     return conditions
 
 
@@ -78,6 +84,7 @@ def _entry(log: QueryLog, feedback: str | None, reason: str | None, dataset_name
         error=log.error,
         feedback=feedback,
         feedback_reason=reason,
+        trust=log.trust,
         dataset_id=log.dataset_id,
         dataset_name=dataset_name,
         conversation_id=log.conversation_id,
@@ -111,6 +118,9 @@ def summary(days: int | None = Query(None, ge=1, le=365), db: Session = Depends(
             _count(IS_RETRIED),
             _count(IS_RATE_LIMITED),
             func.avg(case((QueryLog.success.is_(True), QueryLog.latency_ms))),
+            _count(QueryLog.trust == "verified"),
+            _count(QueryLog.trust == "governed"),
+            _count(IS_AD_HOC),
         ).where(*window)
     ).one()
 
@@ -139,6 +149,9 @@ def summary(days: int | None = Query(None, ge=1, le=365), db: Session = Depends(
         retried=int(row[4]),
         rate_limited=int(row[5]),
         avg_latency_ms=int(round(float(row[6]))) if row[6] is not None else None,
+        verified=int(row[7]),
+        governed=int(row[8]),
+        ad_hoc=int(row[9]),
         thumbs_up=int(ratings[0]),
         thumbs_down=int(ratings[1]),
         top_errors=[ErrorCount(error=e or "(no message)", count=int(c)) for e, c in top],
@@ -192,7 +205,7 @@ def export_csv(
     writer = csv.writer(buffer)
     writer.writerow(
         [
-            "created_at", "dataset", "question", "status", "attempts", "latency_ms",
+            "created_at", "dataset", "question", "status", "trust", "attempts", "latency_ms",
             "row_count", "model", "feedback", "feedback_reason", "sql", "error",
         ]
     )
@@ -202,14 +215,14 @@ def export_csv(
                 _spreadsheet_safe(v)
                 for v in (
                     log.created_at.isoformat(), dataset_name, log.question, _status(log),
-                    log.attempts, log.latency_ms, log.row_count, log.model, feedback, reason,
-                    log.generated_sql, log.error,
+                    log.trust, log.attempts, log.latency_ms, log.row_count, log.model, feedback,
+                    reason, log.generated_sql, log.error,
                 )
             ]
         )
 
     return Response(
-        content="\ufeff" + buffer.getvalue(),  # BOM so Excel reads UTF-8 correctly
+        content="﻿" + buffer.getvalue(),  # BOM so Excel reads UTF-8 correctly
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="octoproc-query-logs.csv"'},
     )

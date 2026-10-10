@@ -20,6 +20,8 @@ import { api, errorMessage } from "@/lib/api";
 import type { ColumnSemantic, Dataset, Relationship, SemanticLayer } from "@/lib/types";
 import { cn, uid } from "@/lib/utils";
 import QualityPanel from "@/components/semantic/QualityPanel";
+import DefinitionsEditor from "@/components/semantic/DefinitionsEditor";
+import VerifiedPanel from "@/components/semantic/VerifiedPanel";
 
 const inputClasses =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:border-octo-green focus:outline-none focus:ring-2 focus:ring-octo-green/20";
@@ -227,7 +229,7 @@ export default function ReviewEditorPage() {
 
       <PageHeader
         title={dataset.name}
-        description="Review the generated semantic layer. Edit anything that looks wrong; the chat agent will rely on exactly what you approve here."
+        description="Review the generated semantic layer: meanings, relationships, governed metrics and default filters. Edit anything that looks wrong; the chat agent relies on exactly what you approve here."
         actions={<StatusBadge status={dataset.status} />}
       />
 
@@ -397,6 +399,14 @@ export default function ReviewEditorPage() {
           </div>
         )}
       </section>
+
+      {/* Governed definitions and the verified-answer library */}
+      <DefinitionsEditor
+        layer={layer}
+        datasetId={dataset.id}
+        onChange={(patch) => edit((l) => ({ ...l, ...patch }))}
+      />
+      <VerifiedPanel datasetId={dataset.id} />
 
       {actionError && (
         <div className="mt-6">

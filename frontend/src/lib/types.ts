@@ -40,12 +40,45 @@ export interface Relationship {
   type: "many-to-one" | "one-to-many" | "one-to-one";
 }
 
+/** A governed measure: one aggregate over one table, agreed once and reused in every answer. */
+export interface Metric {
+  id: string;
+  name: string;
+  table: string;
+  expression: string; // DuckDB aggregate, e.g. SUM(amount)
+  description: string;
+}
+
+/** A default filter: the rows to keep unless the user asks otherwise, e.g. status <> 'test'. */
+export interface DefaultFilter {
+  id: string;
+  table: string;
+  expression: string;
+  description: string;
+}
+
+export interface BusinessRule {
+  id: string;
+  text: string;
+}
+
 export interface SemanticLayer {
   datasetId: string;
   summary: string;
   tables: TableSemantic[];
   relationships: Relationship[];
+  metrics: Metric[];
+  filters: DefaultFilter[];
+  rules: BusinessRule[];
   generatedBy?: "heuristic" | "llm";
+}
+
+export interface DefinitionCheck {
+  id: string;
+  kind: "metric" | "filter";
+  ok: boolean;
+  value?: string | null;
+  problem?: string | null;
 }
 
 export interface QualityIssue {
@@ -61,6 +94,40 @@ export interface ChartSpec {
   xKey: string;
   yKeys: string[];
   data: Record<string, string | number>[];
+}
+
+/**
+ * verified = a person confirmed this exact calculation before; governed = built only from
+ * approved metrics with every default filter applied; ad_hoc = the AI's own calculation.
+ */
+export type Trust = "verified" | "governed" | "ad_hoc";
+
+export interface MetricUse {
+  name: string;
+  expression: string;
+}
+
+export interface FilterUse {
+  id: string;
+  table: string;
+  expression: string;
+  description: string;
+  reason?: string | null; // for a skipped filter: why the user wanted those rows included
+}
+
+/** The receipts behind an answer. */
+export interface Grounding {
+  reason: string;
+  metricsUsed: MetricUse[];
+  filtersApplied: FilterUse[];
+  filtersSkipped: FilterUse[];
+  filtersMissing: FilterUse[];
+  unmatchedAggregates: string[];
+  tables: string[];
+  columns: string[];
+  rowsPreview: Record<string, string | number | boolean | null>[];
+  rowCount: number;
+  verifiedQuestion?: string | null;
 }
 
 export type Feedback = "up" | "down" | null;
@@ -79,6 +146,18 @@ export interface ChatMessage {
   sql?: string | null;
   feedback?: Feedback;
   feedbackReason?: FeedbackReason | null;
+  trust?: Trust | null;
+  grounding?: Grounding | null;
+  createdAt: string;
+}
+
+export interface VerifiedQuery {
+  id: string;
+  datasetId: string;
+  question: string;
+  sql: string;
+  standalone: boolean; // asked without earlier turns, so it can be reused on its own
+  conversationId?: string | null;
   createdAt: string;
 }
 
@@ -122,6 +201,7 @@ export interface LogEntry {
   error?: string | null;
   feedback?: string | null;
   feedbackReason?: string | null;
+  trust?: Trust | null;
   datasetId?: string | null;
   datasetName?: string | null;
   conversationId?: string | null;
@@ -148,5 +228,8 @@ export interface InsightsSummary {
   avgLatencyMs?: number | null;
   thumbsUp: number;
   thumbsDown: number;
+  verified: number;
+  governed: number;
+  adHoc: number;
   topErrors: ErrorCount[];
 }

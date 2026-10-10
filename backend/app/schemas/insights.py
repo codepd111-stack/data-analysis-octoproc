@@ -20,6 +20,10 @@ class InsightsSummary(CamelModel):
     avg_latency_ms: int | None = None
     thumbs_up: int
     thumbs_down: int
+    # Answered questions by trust badge
+    verified: int = 0
+    governed: int = 0
+    ad_hoc: int = 0
     top_errors: list[ErrorCount]
 
 
@@ -36,6 +40,7 @@ class LogEntry(CamelModel):
     error: str | None = None
     feedback: str | None = None
     feedback_reason: str | None = None
+    trust: str | None = None
     dataset_id: str | None = None
     dataset_name: str | None = None
     conversation_id: str | None = None

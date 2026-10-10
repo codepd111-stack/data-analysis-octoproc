@@ -217,7 +217,7 @@ export default function ChatView({
             </div>
             <h2 className="mt-4 text-lg font-semibold text-slate-900">Ask anything about your data</h2>
             <p className="mt-1 text-sm text-slate-500">
-              You&apos;ll get a written explanation and a chart for every question.
+              Every answer comes with a written explanation, a chart, and the evidence behind it.
             </p>
             <div className="mt-6 grid w-full gap-2 sm:grid-cols-2">
               {suggestions.map((s) => (

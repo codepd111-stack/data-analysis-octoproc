@@ -2,6 +2,7 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import JSONResponse
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -12,6 +13,7 @@ from app.schemas.chat import ChatRequest, ChatResponse, FeedbackRequest, Message
 from app.schemas.semantic import SemanticLayerSchema
 from app.services.chat_orchestrator import answer_question
 from app.services.semantic_store import latest_approved_layer
+from app.services.verified_store import forget_from_message, load_examples, remember
 
 router = APIRouter(prefix="/api/chat", tags=["chat"])
 
@@ -53,6 +55,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         layer=SemanticLayerSchema.model_validate(layer_row.layer),
         history=history,
         question=req.question,
+        verified=load_examples(db, dataset.id),
     )
     latency_ms = int((time.perf_counter() - started) * 1000)
 
@@ -85,6 +88,8 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
         content=result.content,
         chart=result.chart,
         sql=result.sql,
+        trust=result.trust,
+        grounding=result.grounding,
     )
     db.add(assistant)
     db.flush()
@@ -102,6 +107,7 @@ def chat(req: ChatRequest, db: Session = Depends(get_db)):
             row_count=result.row_count,
             latency_ms=latency_ms,
             model=result.model,
+            trust=result.trust,
         )
     )
     conversation.updated_at = utcnow()
@@ -119,4 +125,25 @@ def feedback(req: FeedbackRequest, db: Session = Depends(get_db)):
     message.feedback = req.feedback
     # A reason only makes sense for a thumbs-down
     message.feedback_reason = req.reason if req.feedback == "down" else None
+
+    # A thumbs-up is a person confirming the calculation, so it joins the verified library;
+    # taking the thumbs-up back removes it again.
+    log = db.scalar(select(QueryLog).where(QueryLog.message_id == message.id))
+    if req.feedback == "up" and log is not None and log.success and log.dataset_id and message.sql:
+        earlier = db.scalar(
+            select(func.count(Message.id)).where(
+                Message.conversation_id == message.conversation_id,
+                Message.created_at < message.created_at,
+            )
+        )
+        remember(
+            db,
+            dataset_id=log.dataset_id,
+            question=log.question,
+            sql=message.sql,
+            standalone=(earlier or 0) <= 1,  # only its own question came before it
+            message_id=message.id,
+        )
+    else:
+        forget_from_message(db, message.id)
     db.commit()
